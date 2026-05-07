@@ -3,6 +3,18 @@ const { normalizeString } = require("./utils");
 
 const UNKNOWN_LABEL = "UNKNOWN";
 
+function normalizeDisplayValue(value) {
+  if (typeof value === "string") {
+    return value.trim();
+  }
+
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return String(value);
+  }
+
+  return "";
+}
+
 function buildDedupKey(item) {
   const token = normalizeString(item.token);
   const phase = String(item.phase ?? "").trim();
@@ -34,8 +46,8 @@ function normalizeAirdrop(raw, now = new Date()) {
   const name = normalizeString(raw.name) || token;
   const date = normalizeString(raw.date);
   const time = normalizeString(raw.time) || "TBA";
-  const points = normalizeString(raw.points) || "-";
-  const amount = normalizeString(raw.amount) || "-";
+  const points = normalizeDisplayValue(raw.points) || "-";
+  const amount = normalizeDisplayValue(raw.amount) || "-";
   const type = normalizeString(raw.type) || "-";
   const phase = String(raw.phase ?? "").trim();
   const status = normalizeString(raw.status) || "-";
@@ -78,6 +90,7 @@ function extractNormalizedAirdrops(payload, now = new Date()) {
 module.exports = {
   UNKNOWN_LABEL,
   buildDedupKey,
+  normalizeDisplayValue,
   normalizeAirdrop,
   extractNormalizedAirdrops
 };

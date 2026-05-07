@@ -3,9 +3,19 @@ const assert = require("node:assert/strict");
 const {
   UNKNOWN_LABEL,
   buildDedupKey,
+  normalizeDisplayValue,
   extractNormalizedAirdrops
 } = require("../src/normalize");
 const mixed = require("./fixtures/alpha-mixed.json");
+
+test("normalizeDisplayValue accepts strings and numbers for display fields", () => {
+  assert.equal(normalizeDisplayValue("245"), "245");
+  assert.equal(normalizeDisplayValue(245), "245");
+  assert.equal(normalizeDisplayValue(360), "360");
+  assert.equal(normalizeDisplayValue(""), "");
+  assert.equal(normalizeDisplayValue(null), "");
+  assert.equal(normalizeDisplayValue(undefined), "");
+});
 
 test("buildDedupKey requires token phase date and type", () => {
   assert.equal(
@@ -90,4 +100,29 @@ test("extractNormalizedAirdrops keeps UNKNOWN items when created_timestamp is pr
   assert.equal(items[0].token, UNKNOWN_LABEL);
   assert.equal(items[0].name, UNKNOWN_LABEL);
   assert.equal(items[0].category, "today");
+});
+
+test("extractNormalizedAirdrops keeps numeric points and amount values", () => {
+  const items = extractNormalizedAirdrops(
+    {
+      airdrops: [
+        {
+          token: "PLAY",
+          name: "PlaysOut",
+          date: "2026-05-07",
+          time: "18:00",
+          points: 245,
+          amount: 360,
+          type: "grab",
+          phase: 1,
+          status: "announced"
+        }
+      ]
+    },
+    new Date("2026-05-07T09:00:00+08:00")
+  );
+
+  assert.equal(items.length, 1);
+  assert.equal(items[0].points, "245");
+  assert.equal(items[0].amount, "360");
 });
