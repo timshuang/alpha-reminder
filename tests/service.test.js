@@ -54,6 +54,55 @@ test("pollOnce sends no notifications for empty payload", async () => {
   assert.equal(notifications.length, 0);
 });
 
+test("pollOnce filters expired items with concrete schedule", async () => {
+  const notifications = [];
+  const { store } = createTempStateStore();
+  const service = new AlphaReminderService({
+    source: {
+      apiUrl: "https://example.test/api",
+      requestTimeoutMs: 1000,
+      pollIntervalMs: 1000
+    },
+    bark: {},
+    fetchImpl: async () =>
+      createJsonResponse({
+        airdrops: [{ token: "PLAY", date: "2026-05-07", time: "18:00", phase: 1, type: "grab" }]
+      }),
+    notifier: async ({ item }) => notifications.push(item.token),
+    now: () => new Date("2026-05-08T12:07:00+08:00"),
+    stateStore: store
+  });
+
+  const result = await service.pollOnce();
+  assert.equal(result.items.length, 1);
+  assert.equal(result.newItems.length, 0);
+  assert.equal(notifications.length, 0);
+});
+
+test("pollOnce allows first-time same-day items without time", async () => {
+  const notifications = [];
+  const { store } = createTempStateStore();
+  const service = new AlphaReminderService({
+    source: {
+      apiUrl: "https://example.test/api",
+      requestTimeoutMs: 1000,
+      pollIntervalMs: 1000
+    },
+    bark: {},
+    fetchImpl: async () =>
+      createJsonResponse({
+        airdrops: [{ token: "SHARE", date: "2026-05-08", phase: 1 }]
+      }),
+    notifier: async ({ item }) => notifications.push(item.identityKey),
+    now: () => new Date("2026-05-08T12:07:00+08:00"),
+    stateStore: store
+  });
+
+  const result = await service.pollOnce();
+  assert.equal(result.newItems.length, 1);
+  assert.deepEqual(notifications, ["token:SHARE|phase:1|date:2026-05-08"]);
+});
+
 test("pollOnce sends first preview once and suppresses unchanged preview across days", async () => {
   const notifications = [];
   const { store } = createTempStateStore();

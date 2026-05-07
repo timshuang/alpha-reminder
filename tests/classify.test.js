@@ -1,6 +1,10 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { classifyAirdrop, formatUtcPlus8Date } = require("../src/classify");
+const {
+  classifyAirdrop,
+  formatUtcPlus8Date,
+  parseUtcPlus8DateTime
+} = require("../src/classify");
 
 test("classifyAirdrop marks same-day item as today", () => {
   const now = new Date("2026-05-05T01:00:00+08:00");
@@ -42,4 +46,9 @@ test("classifyAirdrop falls back when date is invalid", () => {
 test("formatUtcPlus8Date follows UTC+8 instead of machine locale", () => {
   const now = new Date("2026-05-04T16:30:00Z");
   assert.equal(formatUtcPlus8Date(now), "2026-05-05");
+});
+
+test("parseUtcPlus8DateTime parses scheduled UTC+8 moments", () => {
+  const parsed = parseUtcPlus8DateTime("2026-05-07", "18:00");
+  assert.equal(parsed.toISOString(), "2026-05-07T10:00:00.000Z");
 });

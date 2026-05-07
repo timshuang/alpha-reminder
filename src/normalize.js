@@ -1,4 +1,8 @@
-const { classifyAirdrop, classifyLabel } = require("./classify");
+const {
+  classifyAirdrop,
+  classifyLabel,
+  parseUtcPlus8DateTime
+} = require("./classify");
 const { normalizeString } = require("./utils");
 
 const UNKNOWN_LABEL = "UNKNOWN";
@@ -91,6 +95,22 @@ function buildDedupKey(item) {
   return dedupeParts.join("|");
 }
 
+function hasConcreteSchedule(item) {
+  return Boolean(parseUtcPlus8DateTime(normalizeString(item.date), normalizeString(item.time)));
+}
+
+function isExpiredAirdrop(item, now = new Date()) {
+  const scheduledAt = parseUtcPlus8DateTime(
+    normalizeString(item.date),
+    normalizeString(item.time)
+  );
+  if (!scheduledAt) {
+    return false;
+  }
+
+  return now.getTime() > scheduledAt.getTime();
+}
+
 function normalizeAirdrop(raw, now = new Date()) {
   const identityKey = buildIdentityKey(raw);
   if (!identityKey) {
@@ -100,6 +120,7 @@ function normalizeAirdrop(raw, now = new Date()) {
   const category = classifyAirdrop(raw, now);
   const notificationSignature = buildNotificationSignature(raw, category);
   const dedupeKey = buildDedupKey(raw);
+  const expired = isExpiredAirdrop(raw, now);
   const token = normalizeString(raw.token) || UNKNOWN_LABEL;
   const name = normalizeString(raw.name) || token;
   const date = normalizeString(raw.date) || UNKNOWN_DATE;
@@ -114,6 +135,8 @@ function normalizeAirdrop(raw, now = new Date()) {
     identityKey,
     notificationSignature,
     dedupeKey,
+    hasConcreteSchedule: hasConcreteSchedule(raw),
+    isExpired: expired,
     category,
     categoryLabel: classifyLabel(category),
     token,
@@ -156,6 +179,8 @@ module.exports = {
   buildIdentityKey,
   buildNotificationSignature,
   buildDedupKey,
+  hasConcreteSchedule,
+  isExpiredAirdrop,
   normalizeDisplayValue,
   normalizeAirdrop,
   extractNormalizedAirdrops

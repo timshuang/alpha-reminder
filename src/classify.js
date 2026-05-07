@@ -7,6 +7,20 @@ function parseDateOnly(date) {
   return Number.isNaN(parsed.getTime()) ? null : parsed;
 }
 
+function parseUtcPlus8DateTime(date, time) {
+  if (
+    !date ||
+    !time ||
+    !/^\d{4}-\d{2}-\d{2}$/.test(date) ||
+    !/^\d{2}:\d{2}$/.test(time)
+  ) {
+    return null;
+  }
+
+  const parsed = new Date(`${date}T${time}:00+08:00`);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
 function formatUtcPlus8Date(now = new Date()) {
   const utcPlus8Ms = now.getTime() + 8 * 60 * 60 * 1000;
   return new Date(utcPlus8Ms).toISOString().slice(0, 10);
@@ -39,5 +53,6 @@ module.exports = {
   classifyAirdrop,
   classifyLabel,
   parseDateOnly,
+  parseUtcPlus8DateTime,
   formatUtcPlus8Date
 };

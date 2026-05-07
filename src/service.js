@@ -38,6 +38,9 @@ class AlphaReminderService {
     const items = extractNormalizedAirdrops(payload, this.now());
     const newItems = [];
     for (const item of items) {
+      if (item.isExpired) {
+        continue;
+      }
       if (!this.shouldNotify(item)) {
         continue;
       }

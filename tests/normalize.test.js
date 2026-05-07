@@ -4,6 +4,8 @@ const {
   buildIdentityKey,
   buildNotificationSignature,
   buildDedupKey,
+  hasConcreteSchedule,
+  isExpiredAirdrop,
   normalizeDisplayValue,
   extractNormalizedAirdrops,
   UNKNOWN_DATE,
@@ -94,6 +96,30 @@ test("extractNormalizedAirdrops ignores invalid payloads", () => {
   assert.deepEqual(extractNormalizedAirdrops({ airdrops: null }), []);
 });
 
+test("isExpiredAirdrop only expires items with full date and time", () => {
+  assert.equal(
+    isExpiredAirdrop(
+      { date: "2026-05-07", time: "18:00" },
+      new Date("2026-05-08T12:07:00+08:00")
+    ),
+    true
+  );
+  assert.equal(
+    isExpiredAirdrop(
+      { date: "2026-05-07", time: "18:00" },
+      new Date("2026-05-07T17:59:00+08:00")
+    ),
+    false
+  );
+  assert.equal(
+    isExpiredAirdrop(
+      { date: "2026-05-08", time: "" },
+      new Date("2026-05-08T12:07:00+08:00")
+    ),
+    false
+  );
+});
+
 test("extractNormalizedAirdrops only requires token to notify", () => {
   const items = extractNormalizedAirdrops({
     airdrops: [
@@ -113,6 +139,8 @@ test("extractNormalizedAirdrops only requires token to notify", () => {
     "time:\u65f6\u95f4\u672a\u77e5|points:-|type:\u7c7b\u578b\u672a\u77e5"
   );
   assert.equal(items[0].dedupeKey, "token:AAA");
+  assert.equal(items[0].hasConcreteSchedule, false);
+  assert.equal(items[0].isExpired, false);
   assert.equal(items[0].date, UNKNOWN_DATE);
   assert.equal(items[0].time, UNKNOWN_TIME);
   assert.equal(items[0].type, UNKNOWN_TYPE);
@@ -164,6 +192,8 @@ test("extractNormalizedAirdrops keeps numeric points and amount values", () => {
   );
 
   assert.equal(items.length, 1);
+  assert.equal(hasConcreteSchedule(items[0].raw), true);
+  assert.equal(items[0].isExpired, false);
   assert.equal(items[0].points, "245");
   assert.equal(items[0].amount, "360");
 });
