@@ -1,0 +1,40 @@
+{
+  "airdrops": [
+    {
+      "token": "AAA",
+      "name": "Alpha A",
+      "date": "2026-05-05",
+      "time": "10:00",
+      "points": "120",
+      "amount": "500",
+      "type": "grab",
+      "phase": 1,
+      "status": "announced",
+      "completed": false
+    },
+    {
+      "token": "BBB",
+      "name": "Beta B",
+      "date": "2026-05-06",
+      "time": "11:00",
+      "points": "150",
+      "amount": "800",
+      "type": "tge",
+      "phase": 2,
+      "status": "announced",
+      "completed": false
+    },
+    {
+      "token": "AAA",
+      "name": "Alpha A Duplicate",
+      "date": "2026-05-05",
+      "time": "10:00",
+      "points": "999",
+      "amount": "999",
+      "type": "grab",
+      "phase": 1,
+      "status": "announced",
+      "completed": false
+    }
+  ]
+}

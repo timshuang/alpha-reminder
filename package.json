@@ -1,0 +1,13 @@
+{
+  "name": "alpha-reminder",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Lightweight alpha123.uk monitor with Bark notifications.",
+  "type": "commonjs",
+  "scripts": {
+    "run": "node src/cli.js run",
+    "dry-run": "node src/cli.js dry-run",
+    "test-bark": "node src/cli.js test-bark",
+    "test": "node --test"
+  }
+}

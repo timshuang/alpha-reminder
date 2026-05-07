@@ -1,0 +1,6 @@
+.env
+coverage
+node_modules
+handover.md
+data/
+logs/
