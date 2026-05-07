@@ -72,17 +72,40 @@ npm test
 - `logs/`
   - `pm2` 日志目录
 
-## 部署方式
+## 一键安装
 
 适用于 Ubuntu / Debian VPS，WSL Ubuntu 也可直接使用。
 
 执行：
 
 ```bash
+curl -fsSL https://raw.githubusercontent.com/timshuang/alpha-reminder/main/install.sh | bash
+```
+
+一键安装脚本会：
+
+- 安装到 `$HOME/alpha-reminder`
+- 如果目录已存在，会直接删除后重新安装
+- 下载 GitHub 上 `main` 分支最新代码
+- 调用项目内安装脚本完成初始化
+
+注意：
+
+- 重装会删除旧的 `.env`
+- 重装会删除 `data/notified-airdrops.json`
+- 重装会删除 `logs/`
+- 重装后需要重新输入 `BARK_DEVICE_KEY`
+- 因为去重状态会丢失，重装当日可能再次推送之前已通知过的条目
+
+## 项目内安装
+
+如果代码已经在本地目录中，也可以直接执行：
+
+```bash
 bash scripts/setup-linux.sh
 ```
 
-安装脚本会：
+项目内安装脚本会：
 
 - 检查并安装缺失的 `node`、`npm`、`pm2`
 - 在不存在 `.env` 时根据 `.env.example` 自动生成
