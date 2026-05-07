@@ -84,6 +84,28 @@ test("buildBarkPayload keeps today and upcoming bodies identical except title pr
   assert.equal(upcomingPayload.title, "\u7a7a\u6295\u9884\u544a: Example Project (EXM)");
 });
 
+test("buildBarkPayload falls back to reminder title and placeholder type when date is unavailable", () => {
+  const payload = buildBarkPayload(
+    {
+      categoryLabel: "\u7a7a\u6295\u63d0\u9192",
+      name: "ShareX",
+      token: "SHARE",
+      points: "-",
+      amount: "-",
+      date: "\u65e5\u671f\u672a\u77e5",
+      time: "\u65f6\u95f4\u672a\u77e5",
+      phase: "-",
+      type: "\u7c7b\u578b\u672a\u77e5",
+      status: "announced"
+    },
+    createBarkConfig()
+  );
+
+  assert.equal(payload.title, "\u7a7a\u6295\u63d0\u9192: ShareX (SHARE)");
+  assert.match(payload.body, /\u65f6\u95f4: \u65e5\u671f\u672a\u77e5 \u65f6\u95f4\u672a\u77e5/);
+  assert.match(payload.body, /\u7c7b\u578b: \u7c7b\u578b\u672a\u77e5/);
+});
+
 test("sendBarkNotification rejects non-200 Bark payloads", async () => {
   await assert.rejects(
     sendBarkNotification({

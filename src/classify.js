@@ -1,36 +1,43 @@
-function parseBeijingDateTime(date, time) {
-  if (!date) {
+function parseDateOnly(date) {
+  if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
     return null;
   }
 
-  const normalizedTime = time && /^\d{2}:\d{2}$/.test(time) ? `${time}:00` : "12:00:00";
-  const parsed = new Date(`${date}T${normalizedTime}+08:00`);
+  const parsed = new Date(`${date}T00:00:00+08:00`);
   return Number.isNaN(parsed.getTime()) ? null : parsed;
 }
 
-function startOfLocalDay(now) {
-  return new Date(now.getFullYear(), now.getMonth(), now.getDate());
+function formatUtcPlus8Date(now = new Date()) {
+  const utcPlus8Ms = now.getTime() + 8 * 60 * 60 * 1000;
+  return new Date(utcPlus8Ms).toISOString().slice(0, 10);
 }
 
 function classifyAirdrop(item, now = new Date()) {
-  const dateTime = parseBeijingDateTime(item.date, item.time);
-  if (!dateTime) {
-    return "upcoming";
+  const itemDate = typeof item.date === "string" ? item.date.trim() : "";
+  const parsedDate = parseDateOnly(itemDate);
+  if (!parsedDate) {
+    return "fallback";
   }
 
-  const todayStart = startOfLocalDay(now);
-  const tomorrowStart = new Date(todayStart);
-  tomorrowStart.setDate(todayStart.getDate() + 1);
-
-  return dateTime < tomorrowStart ? "today" : "upcoming";
+  const utcPlus8Today = formatUtcPlus8Date(now);
+  return itemDate > utcPlus8Today ? "upcoming" : "today";
 }
 
 function classifyLabel(type) {
-  return type === "today" ? "\u4eca\u65e5\u7a7a\u6295" : "\u7a7a\u6295\u9884\u544a";
+  if (type === "today") {
+    return "\u4eca\u65e5\u7a7a\u6295";
+  }
+
+  if (type === "upcoming") {
+    return "\u7a7a\u6295\u9884\u544a";
+  }
+
+  return "\u7a7a\u6295\u63d0\u9192";
 }
 
 module.exports = {
   classifyAirdrop,
   classifyLabel,
-  parseBeijingDateTime
+  parseDateOnly,
+  formatUtcPlus8Date
 };

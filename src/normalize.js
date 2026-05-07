@@ -2,6 +2,17 @@ const { classifyAirdrop, classifyLabel } = require("./classify");
 const { normalizeString } = require("./utils");
 
 const UNKNOWN_LABEL = "UNKNOWN";
+const UNKNOWN_DATE = "\u65e5\u671f\u672a\u77e5";
+const UNKNOWN_TIME = "\u65f6\u95f4\u672a\u77e5";
+const UNKNOWN_TYPE = "\u7c7b\u578b\u672a\u77e5";
+
+function normalizeMetaValue(value) {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return String(value);
+  }
+
+  return normalizeString(value);
+}
 
 function normalizeDisplayValue(value) {
   if (typeof value === "string") {
@@ -15,44 +26,93 @@ function normalizeDisplayValue(value) {
   return "";
 }
 
+function buildIdentityKey(item) {
+  const token = normalizeString(item.token);
+  if (!token) {
+    return null;
+  }
+
+  const identityParts = [`token:${token}`];
+  const candidateFields = [
+    ["phase", item.phase],
+    ["date", item.date],
+    ["id", item.id]
+  ];
+
+  for (const [label, rawValue] of candidateFields) {
+    const value = normalizeMetaValue(rawValue);
+    if (!value) {
+      continue;
+    }
+    identityParts.push(`${label}:${value}`);
+  }
+
+  return identityParts.join("|");
+}
+
+function buildNotificationSignature(item, category) {
+  const time = normalizeString(item.time) || UNKNOWN_TIME;
+  const points = normalizeDisplayValue(item.points) || "-";
+  const type = normalizeString(item.type) || UNKNOWN_TYPE;
+
+  return [
+    `time:${time}`,
+    `points:${points}`,
+    `type:${type}`
+  ].join("|");
+}
+
 function buildDedupKey(item) {
   const token = normalizeString(item.token);
-  const phase = String(item.phase ?? "").trim();
-  const date = normalizeString(item.date);
-  const time = normalizeString(item.time);
-  const type = normalizeString(item.type);
-  const createdTimestamp = String(item.created_timestamp ?? "").trim();
-
-  if (!phase || !date || !type) {
+  if (!token) {
     return null;
   }
 
-  const identity = token || createdTimestamp;
-  if (!identity) {
-    return null;
+  const dedupeParts = [`token:${token}`];
+  const candidateFields = [
+    ["created", item.created_timestamp],
+    ["timestamp", item.timestamp],
+    ["system", item.system_timestamp],
+    ["phase", item.phase],
+    ["date", item.date],
+    ["time", item.time],
+    ["type", item.type],
+    ["status", item.status]
+  ];
+
+  for (const [label, rawValue] of candidateFields) {
+    const value = normalizeMetaValue(rawValue);
+    if (!value) {
+      continue;
+    }
+    dedupeParts.push(`${label}:${value}`);
   }
 
-  return [identity, phase, date, time || "TBA", type].join("|");
+  return dedupeParts.join("|");
 }
 
 function normalizeAirdrop(raw, now = new Date()) {
-  const dedupeKey = buildDedupKey(raw);
-  if (!dedupeKey) {
+  const identityKey = buildIdentityKey(raw);
+  if (!identityKey) {
     return null;
   }
 
   const category = classifyAirdrop(raw, now);
+  const notificationSignature = buildNotificationSignature(raw, category);
+  const dedupeKey = buildDedupKey(raw);
   const token = normalizeString(raw.token) || UNKNOWN_LABEL;
   const name = normalizeString(raw.name) || token;
-  const date = normalizeString(raw.date);
-  const time = normalizeString(raw.time) || "TBA";
+  const date = normalizeString(raw.date) || UNKNOWN_DATE;
+  const time = normalizeString(raw.time) || UNKNOWN_TIME;
   const points = normalizeDisplayValue(raw.points) || "-";
   const amount = normalizeDisplayValue(raw.amount) || "-";
-  const type = normalizeString(raw.type) || "-";
-  const phase = String(raw.phase ?? "").trim();
+  const type = normalizeString(raw.type) || UNKNOWN_TYPE;
+  const phase = String(raw.phase ?? "").trim() || "-";
   const status = normalizeString(raw.status) || "-";
 
   return {
+    identityKey,
+    notificationSignature,
     dedupeKey,
     category,
     categoryLabel: classifyLabel(category),
@@ -78,10 +138,11 @@ function extractNormalizedAirdrops(payload, now = new Date()) {
   const seenInBatch = new Set();
   for (const rawItem of payload.airdrops) {
     const normalized = normalizeAirdrop(rawItem, now);
-    if (!normalized || seenInBatch.has(normalized.dedupeKey)) {
+    const batchKey = normalized ? normalized.identityKey : "";
+    if (!normalized || seenInBatch.has(batchKey)) {
       continue;
     }
-    seenInBatch.add(normalized.dedupeKey);
+    seenInBatch.add(batchKey);
     results.push(normalized);
   }
   return results;
@@ -89,6 +150,11 @@ function extractNormalizedAirdrops(payload, now = new Date()) {
 
 module.exports = {
   UNKNOWN_LABEL,
+  UNKNOWN_DATE,
+  UNKNOWN_TIME,
+  UNKNOWN_TYPE,
+  buildIdentityKey,
+  buildNotificationSignature,
   buildDedupKey,
   normalizeDisplayValue,
   normalizeAirdrop,

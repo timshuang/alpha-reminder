@@ -20,15 +20,14 @@ class AlphaReminderService {
     this.notifier = notifier;
     this.now = now;
     this.stateStore = stateStore;
-    this.seen = new Set();
-    this.stateDate = null;
+    this.snapshot = null;
     this.stopped = false;
     this.pendingSleep = null;
   }
 
   async pollOnce({ notify = true } = {}) {
     const currentDateKey = formatDateKey(this.now());
-    this.refreshSeenState(currentDateKey);
+    this.refreshSnapshot();
 
     const payload = await fetchAlphaData({
       apiUrl: this.source.apiUrl,
@@ -39,7 +38,7 @@ class AlphaReminderService {
     const items = extractNormalizedAirdrops(payload, this.now());
     const newItems = [];
     for (const item of items) {
-      if (this.seen.has(item.dedupeKey)) {
+      if (!this.shouldNotify(item)) {
         continue;
       }
       newItems.push(item);
@@ -58,14 +57,16 @@ class AlphaReminderService {
             item,
             fetchImpl: this.fetchImpl
           });
-          this.recordNotification(currentDateKey, item.dedupeKey);
+          this.recordNotification(currentDateKey, item);
           logger.info("Sent Bark notification.", {
-            dedupeKey: item.dedupeKey,
+            identityKey: item.identityKey,
+            notificationSignature: item.notificationSignature,
             token: item.token
           });
         } catch (error) {
           logger.error("Failed to send Bark notification.", {
-            dedupeKey: item.dedupeKey,
+            identityKey: item.identityKey,
+            notificationSignature: item.notificationSignature,
             error: error.message
           });
         }
@@ -108,21 +109,34 @@ class AlphaReminderService {
     }
   }
 
-  refreshSeenState(dateKey) {
-    if (this.stateDate === dateKey) {
+  refreshSnapshot() {
+    if (this.snapshot) {
       return;
     }
 
-    this.seen = new Set(this.stateStore.load(dateKey));
-    this.stateDate = dateKey;
+    this.snapshot = this.stateStore.load();
   }
 
-  recordNotification(dateKey, dedupeKey) {
-    if (this.stateDate !== dateKey) {
-      this.refreshSeenState(dateKey);
+  shouldNotify(item) {
+    this.refreshSnapshot();
+    const previous = this.snapshot.items[item.identityKey];
+    if (!previous) {
+      return true;
     }
-    this.seen.add(dedupeKey);
-    this.stateStore.save(dateKey, this.seen);
+
+    return previous.signature !== item.notificationSignature;
+  }
+
+  recordNotification(dateKey, item) {
+    this.refreshSnapshot();
+    this.snapshot.updatedAtUtcPlus8Date = dateKey;
+    this.snapshot.items[item.identityKey] = {
+      signature: item.notificationSignature,
+      category: item.category,
+      date: item.raw && typeof item.raw.date === "string" ? item.raw.date : "",
+      lastNotifiedAt: dateKey
+    };
+    this.stateStore.save(this.snapshot);
   }
 }
 

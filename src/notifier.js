@@ -1,6 +1,10 @@
 function formatTypeLabel(type) {
   const normalized = String(type || "").trim().toLowerCase();
 
+  if (!normalized || normalized === "\u7c7b\u578b\u672a\u77e5") {
+    return "\u7c7b\u578b\u672a\u77e5";
+  }
+
   if (normalized === "grab") {
     return "\u5148\u5230\u5148\u5f97";
   }
@@ -17,7 +21,8 @@ function formatTypeLabel(type) {
 }
 
 function buildBarkPayload(item, barkConfig) {
-  const title = `${item.categoryLabel}: ${item.name} (${item.token})`;
+  const categoryLabel = item.categoryLabel || "\u7a7a\u6295\u63d0\u9192";
+  const title = `${categoryLabel}: ${item.name} (${item.token})`;
   const bodyLines = [
     `\u6240\u9700\u79ef\u5206: ${item.points}`,
     `\u7a7a\u6295\u6570\u91cf: ${item.amount}`,

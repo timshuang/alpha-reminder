@@ -4,7 +4,7 @@ const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
 const { AlphaReminderService } = require("../src/service");
-const { DailyNotifiedStateStore } = require("../src/state-store");
+const { DailyNotifiedStateStore, formatDateKey } = require("../src/state-store");
 const emptyFixture = require("./fixtures/alpha-empty.json");
 const mixedFixture = require("./fixtures/alpha-mixed.json");
 
@@ -54,24 +54,15 @@ test("pollOnce sends no notifications for empty payload", async () => {
   assert.equal(notifications.length, 0);
 });
 
-test("pollOnce dedupes across runs but accepts new phase/date combinations", async () => {
+test("pollOnce sends first preview once and suppresses unchanged preview across days", async () => {
   const notifications = [];
   const { store } = createTempStateStore();
   const queue = [
-    mixedFixture,
-    mixedFixture,
     {
-      airdrops: [
-        mixedFixture.airdrops[0],
-        {
-          ...mixedFixture.airdrops[0],
-          phase: 2
-        },
-        {
-          ...mixedFixture.airdrops[1],
-          date: "2026-05-07"
-        }
-      ]
+      airdrops: [{ token: "AAA", date: "2026-05-09", phase: 1 }]
+    },
+    {
+      airdrops: [{ token: "AAA", date: "2026-05-09", phase: 1 }]
     }
   ];
 
@@ -84,51 +75,27 @@ test("pollOnce dedupes across runs but accepts new phase/date combinations", asy
     bark: {},
     fetchImpl: async () => createJsonResponse(queue.shift()),
     notifier: async ({ item }) => notifications.push(item.dedupeKey),
-    now: () => new Date("2026-05-05T01:00:00+08:00"),
+    now: () => new Date(queue.length === 2 ? "2026-05-07T08:00:00+08:00" : "2026-05-08T08:00:00+08:00"),
     stateStore: store
   });
 
   const first = await service.pollOnce();
   const second = await service.pollOnce();
-  const third = await service.pollOnce();
 
-  assert.equal(first.newItems.length, 2);
+  assert.equal(first.newItems.length, 1);
   assert.equal(second.newItems.length, 0);
-  assert.equal(third.newItems.length, 2);
-  assert.deepEqual(notifications, [
-    "AAA|1|2026-05-05|10:00|grab",
-    "BBB|2|2026-05-06|11:00|tge",
-    "AAA|2|2026-05-05|10:00|grab",
-    "BBB|2|2026-05-07|11:00|tge"
-  ]);
+  assert.equal(notifications.length, 1);
 });
 
-test("pollOnce dedupes UNKNOWN items by created_timestamp and accepts new ones", async () => {
+test("pollOnce re-notifies when preview gains time points or type but not amount", async () => {
   const notifications = [];
   const { store } = createTempStateStore();
-  const unknownItem = {
-    token: "",
-    name: "",
-    date: "2026-05-07",
-    time: "18:00",
-    points: "245",
-    type: "grab",
-    phase: 1,
-    status: "announced",
-    created_timestamp: 1778137576
-  };
   const queue = [
-    { airdrops: [unknownItem] },
-    { airdrops: [unknownItem] },
-    {
-      airdrops: [
-        unknownItem,
-        {
-          ...unknownItem,
-          created_timestamp: 1778138000
-        }
-      ]
-    }
+    { airdrops: [{ token: "PLAY", date: "2026-05-09", phase: 1 }] },
+    { airdrops: [{ token: "PLAY", date: "2026-05-09", phase: 1, time: "18:00" }] },
+    { airdrops: [{ token: "PLAY", date: "2026-05-09", phase: 1, time: "18:00", points: "245" }] },
+    { airdrops: [{ token: "PLAY", date: "2026-05-09", phase: 1, time: "18:00", points: "245", amount: "999" }] },
+    { airdrops: [{ token: "PLAY", date: "2026-05-09", phase: 1, time: "18:00", points: "245", amount: "999", type: "grab" }] }
   ];
 
   const service = new AlphaReminderService({
@@ -139,41 +106,29 @@ test("pollOnce dedupes UNKNOWN items by created_timestamp and accepts new ones",
     },
     bark: {},
     fetchImpl: async () => createJsonResponse(queue.shift()),
-    notifier: async ({ item }) =>
-      notifications.push({
-        dedupeKey: item.dedupeKey,
-        name: item.name,
-        token: item.token
-      }),
-    now: () => new Date("2026-05-07T09:00:00+08:00"),
+    notifier: async ({ item }) => notifications.push(item.notificationSignature),
+    now: () => new Date("2026-05-08T09:00:00+08:00"),
     stateStore: store
   });
 
-  const first = await service.pollOnce();
-  const second = await service.pollOnce();
-  const third = await service.pollOnce();
+  await service.pollOnce();
+  await service.pollOnce();
+  await service.pollOnce();
+  await service.pollOnce();
+  await service.pollOnce();
 
-  assert.equal(first.newItems.length, 1);
-  assert.equal(second.newItems.length, 0);
-  assert.equal(third.newItems.length, 1);
   assert.deepEqual(notifications, [
-    {
-      dedupeKey: "1778137576|1|2026-05-07|18:00|grab",
-      name: "UNKNOWN",
-      token: "UNKNOWN"
-    },
-    {
-      dedupeKey: "1778138000|1|2026-05-07|18:00|grab",
-      name: "UNKNOWN",
-      token: "UNKNOWN"
-    }
+    "time:\u65f6\u95f4\u672a\u77e5|points:-|type:\u7c7b\u578b\u672a\u77e5",
+    "time:18:00|points:-|type:\u7c7b\u578b\u672a\u77e5",
+    "time:18:00|points:245|type:\u7c7b\u578b\u672a\u77e5",
+    "time:18:00|points:245|type:grab"
   ]);
 });
 
-test("pollOnce persists same-day notifications across service restarts", async () => {
+test("pollOnce does not re-notify on day switch when only category changes", async () => {
   const notifications = [];
   const { filePath, store } = createTempStateStore();
-  const item = mixedFixture.airdrops[0];
+  const item = { token: "AAA", date: "2026-05-09", time: "18:00", phase: 1, type: "grab" };
 
   const firstService = new AlphaReminderService({
     source: {
@@ -184,16 +139,16 @@ test("pollOnce persists same-day notifications across service restarts", async (
     bark: {},
     fetchImpl: async () => createJsonResponse({ airdrops: [item] }),
     notifier: async ({ item: notifiedItem }) =>
-      notifications.push(notifiedItem.dedupeKey),
-    now: () => new Date("2026-05-05T01:00:00+08:00"),
+      notifications.push(notifiedItem.category),
+    now: () => new Date("2026-05-08T01:00:00+08:00"),
     stateStore: store
   });
 
   await firstService.pollOnce();
 
   const persisted = JSON.parse(fs.readFileSync(filePath, "utf8"));
-  assert.equal(persisted.date, "2026-05-05");
-  assert.deepEqual(persisted.dedupeKeys, ["AAA|1|2026-05-05|10:00|grab"]);
+  assert.equal(persisted.version, 2);
+  assert.equal(persisted.items["token:AAA|phase:1|date:2026-05-09"].signature, "time:18:00|points:-|type:grab");
 
   const secondService = new AlphaReminderService({
     source: {
@@ -204,17 +159,21 @@ test("pollOnce persists same-day notifications across service restarts", async (
     bark: {},
     fetchImpl: async () => createJsonResponse({ airdrops: [item] }),
     notifier: async ({ item: notifiedItem }) =>
-      notifications.push(notifiedItem.dedupeKey),
-    now: () => new Date("2026-05-05T08:00:00+08:00"),
+      notifications.push(notifiedItem.category),
+    now: () => new Date("2026-05-09T08:00:00+08:00"),
     stateStore: store
   });
 
   const result = await secondService.pollOnce();
   assert.equal(result.newItems.length, 0);
-  assert.deepEqual(notifications, ["AAA|1|2026-05-05|10:00|grab"]);
+  assert.deepEqual(notifications, ["upcoming"]);
 });
 
-test("pollOnce resets persisted state on a new day", async () => {
+test("state store uses UTC+8 date keys", () => {
+  assert.equal(formatDateKey(new Date("2026-05-07T16:30:00Z")), "2026-05-08");
+});
+
+test("pollOnce migrates old daily state format without crashing", async () => {
   const notifications = [];
   const { filePath, store } = createTempStateStore();
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
@@ -222,7 +181,7 @@ test("pollOnce resets persisted state on a new day", async () => {
     filePath,
     JSON.stringify({
       date: "2026-05-04",
-      dedupeKeys: ["AAA|1|2026-05-05|10:00|grab"]
+      dedupeKeys: ["legacy-key"]
     })
   );
 
@@ -233,19 +192,19 @@ test("pollOnce resets persisted state on a new day", async () => {
       pollIntervalMs: 1000
     },
     bark: {},
-    fetchImpl: async () => createJsonResponse({ airdrops: [mixedFixture.airdrops[0]] }),
-    notifier: async ({ item }) => notifications.push(item.dedupeKey),
-    now: () => new Date("2026-05-05T01:00:00+08:00"),
+    fetchImpl: async () => createJsonResponse({ airdrops: [{ token: "AAA", date: "2026-05-09", phase: 1 }] }),
+    notifier: async ({ item }) => notifications.push(item.identityKey),
+    now: () => new Date("2026-05-07T01:00:00+08:00"),
     stateStore: store
   });
 
   const result = await service.pollOnce();
   assert.equal(result.newItems.length, 1);
-  assert.deepEqual(notifications, ["AAA|1|2026-05-05|10:00|grab"]);
+  assert.deepEqual(notifications, ["token:AAA|phase:1|date:2026-05-09"]);
 
   const persisted = JSON.parse(fs.readFileSync(filePath, "utf8"));
-  assert.equal(persisted.date, "2026-05-05");
-  assert.deepEqual(persisted.dedupeKeys, ["AAA|1|2026-05-05|10:00|grab"]);
+  assert.equal(persisted.version, 2);
+  assert.ok(persisted.items["token:AAA|phase:1|date:2026-05-09"]);
 });
 
 test("pollOnce does not persist failed notifications", async () => {
