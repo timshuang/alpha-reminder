@@ -82,6 +82,8 @@ npm test
 curl -fsSL https://raw.githubusercontent.com/timshuang/alpha-reminder/main/install.sh | bash
 ```
 
+请在可交互终端中执行该命令，安装过程中会要求输入 `BARK_DEVICE_KEY`。
+
 一键安装脚本会：
 
 - 安装到 `$HOME/alpha-reminder`

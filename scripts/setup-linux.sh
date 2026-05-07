@@ -43,9 +43,16 @@ ensure_command() {
 
 prompt_bark_key() {
   local bark_key=""
+  local tty_device="/dev/tty"
+
+  if [[ ! -r "${tty_device}" ]]; then
+    log "Interactive input is unavailable because ${tty_device} cannot be read."
+    log "Please run this installer in an interactive terminal."
+    exit 1
+  fi
 
   while [[ -z "$bark_key" ]]; do
-    read -r -p "Enter BARK_DEVICE_KEY (required): " bark_key
+    read -r -p "Enter BARK_DEVICE_KEY (required): " bark_key < "${tty_device}"
     bark_key="$(printf '%s' "$bark_key" | xargs)"
     if [[ -z "$bark_key" ]]; then
       log "BARK_DEVICE_KEY cannot be empty. Please try again."
