@@ -6,7 +6,11 @@ async function fetchAlphaData({ apiUrl, requestTimeoutMs, fetchImpl = fetch }) {
     const response = await fetchImpl(apiUrl, {
       method: "GET",
       headers: {
-        accept: "application/json"
+        "accept": "application/json",
+        "cache-control": "no-cache",
+        "pragma": "no-cache",
+        "user-agent": "AlphaReminder/0.1.1",
+        "referer": "https://alpha123.uk/"
       },
       signal: controller.signal
     });
