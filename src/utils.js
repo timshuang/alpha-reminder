@@ -31,8 +31,34 @@ function normalizeString(value) {
   return isNonEmptyString(value) ? value.trim() : "";
 }
 
+function formatUtcPlus8Date(now = new Date()) {
+  return new Intl.DateTimeFormat("sv-SE", { timeZone: "Asia/Shanghai" }).format(now);
+}
+
+function formatUtcPlus8Timestamp(now = new Date()) {
+  const parts = new Intl.DateTimeFormat("sv-SE", {
+    timeZone: "Asia/Shanghai",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    fractionalSecondDigits: 3,
+    hour12: false
+  }).formatToParts(now);
+
+  const get = (type) => parts.find((p) => p.type === type).value;
+  const date = `${get("year")}-${get("month")}-${get("day")}`;
+  const time = `${get("hour")}:${get("minute")}:${get("second")}.${get("fractionalSecond")}`;
+
+  return `${date}T${time}+08:00`;
+}
+
 module.exports = {
   sleep,
   isNonEmptyString,
-  normalizeString
+  normalizeString,
+  formatUtcPlus8Date,
+  formatUtcPlus8Timestamp
 };

@@ -1,5 +1,7 @@
+const { formatUtcPlus8Timestamp } = require("./utils");
+
 function timestamp() {
-  return new Date().toISOString();
+  return formatUtcPlus8Timestamp();
 }
 
 function info(message, meta) {

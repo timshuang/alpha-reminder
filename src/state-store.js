@@ -1,9 +1,9 @@
 const fs = require("node:fs");
 const path = require("node:path");
+const { formatUtcPlus8Date } = require("./utils");
 
 function formatDateKey(date) {
-  const utcPlus8Ms = date.getTime() + 8 * 60 * 60 * 1000;
-  return new Date(utcPlus8Ms).toISOString().slice(0, 10);
+  return formatUtcPlus8Date(date);
 }
 
 class NotificationStateStore {

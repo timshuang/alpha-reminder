@@ -1,6 +1,7 @@
 const { loadConfig } = require("./config");
 const { AlphaReminderService } = require("./service");
 const { sendBarkNotification } = require("./notifier");
+const { formatUtcPlus8Date } = require("./utils");
 
 async function run() {
   const command = process.argv[2] || "run";
@@ -15,7 +16,7 @@ async function run() {
         token: "TEST",
         points: "-",
         amount: "-",
-        date: new Date().toISOString().slice(0, 10),
+        date: formatUtcPlus8Date(),
         time: "TBA",
         phase: "1",
         type: "test",

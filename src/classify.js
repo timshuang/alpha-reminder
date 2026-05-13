@@ -1,3 +1,5 @@
+const { formatUtcPlus8Date } = require("./utils");
+
 function parseDateOnly(date) {
   if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
     return null;
@@ -19,11 +21,6 @@ function parseUtcPlus8DateTime(date, time) {
 
   const parsed = new Date(`${date}T${time}:00+08:00`);
   return Number.isNaN(parsed.getTime()) ? null : parsed;
-}
-
-function formatUtcPlus8Date(now = new Date()) {
-  const utcPlus8Ms = now.getTime() + 8 * 60 * 60 * 1000;
-  return new Date(utcPlus8Ms).toISOString().slice(0, 10);
 }
 
 function classifyAirdrop(item, now = new Date()) {
@@ -53,6 +50,5 @@ module.exports = {
   classifyAirdrop,
   classifyLabel,
   parseDateOnly,
-  parseUtcPlus8DateTime,
-  formatUtcPlus8Date
+  parseUtcPlus8DateTime
 };
