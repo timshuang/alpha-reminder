@@ -1,3 +1,11 @@
+class HttpError extends Error {
+  constructor(statusCode, message) {
+    super(message);
+    this.name = "HttpError";
+    this.statusCode = statusCode;
+  }
+}
+
 async function fetchAlphaData({ apiUrl, requestTimeoutMs, fetchImpl = fetch }) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), requestTimeoutMs);
@@ -16,7 +24,7 @@ async function fetchAlphaData({ apiUrl, requestTimeoutMs, fetchImpl = fetch }) {
     });
 
     if (!response.ok) {
-      throw new Error(`Alpha123 API returned ${response.status}`);
+      throw new HttpError(response.status, `Alpha123 API returned ${response.status}`);
     }
 
     const contentType = response.headers.get("content-type") || "";
@@ -31,5 +39,6 @@ async function fetchAlphaData({ apiUrl, requestTimeoutMs, fetchImpl = fetch }) {
 }
 
 module.exports = {
-  fetchAlphaData
+  fetchAlphaData,
+  HttpError
 };

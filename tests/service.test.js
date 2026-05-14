@@ -356,3 +356,121 @@ test("run stops quickly when interrupted during sleep", async () => {
     ])
   );
 });
+
+test("run stops after 4 consecutive 403s and sends alert", async () => {
+  const notifications = [];
+  let fetchCount = 0;
+  const { store } = createTempStateStore();
+
+  const service = new AlphaReminderService({
+    source: {
+      apiUrl: "https://example.test/api",
+      requestTimeoutMs: 1000,
+      pollIntervalMs: 10000
+    },
+    bark: {},
+    fetchImpl: async () => {
+      fetchCount++;
+      return {
+        ok: false,
+        status: 403,
+        headers: { get() { return "text/html"; } },
+        json: async () => ({})
+      };
+    },
+    notifier: async (input) => notifications.push(input),
+    now: () => new Date("2026-05-14T10:00:00+08:00"),
+    stateStore: store,
+    backoffDelays: [10, 10, 10]
+  });
+
+  await service.run();
+
+  assert.equal(fetchCount, 4);
+  assert.equal(notifications.length, 1);
+  assert.equal(notifications[0].item.token, "ALERT");
+  assert.equal(notifications[0].item.categoryLabel, "\u670d\u52a1\u544a\u8b66");
+  assert.equal(service.stopped, true);
+});
+
+test("run resets 403 counter on successful fetch", async () => {
+  let fetchCount = 0;
+  const notifications = [];
+  const { store } = createTempStateStore();
+
+  const responses = [
+    {
+      ok: false,
+      status: 403,
+      headers: { get() { return "text/html"; } },
+      json: async () => ({})
+    },
+    createJsonResponse({ airdrops: [{ token: "AAA", date: "2026-05-14", phase: 1 }] }),
+    {
+      ok: false,
+      status: 403,
+      headers: { get() { return "text/html"; } },
+      json: async () => ({})
+    },
+    createJsonResponse({ airdrops: [{ token: "AAA", date: "2026-05-14", phase: 1 }] })
+  ];
+
+  const service = new AlphaReminderService({
+    source: {
+      apiUrl: "https://example.test/api",
+      requestTimeoutMs: 1000,
+      pollIntervalMs: 10000
+    },
+    bark: {},
+    fetchImpl: async () => responses[fetchCount++],
+    notifier: async ({ item }) => notifications.push(item.token),
+    now: () => new Date("2026-05-14T10:00:00+08:00"),
+    stateStore: store,
+    backoffDelays: [10, 10, 10]
+  });
+
+  const runPromise = service.run();
+  await new Promise((resolve) => setTimeout(resolve, 50));
+  service.stop();
+  await runPromise;
+
+  assert.ok(fetchCount >= 2, "should have retried after successful recovery");
+  assert.equal(service.stopped, true);
+});
+
+test("run does not backoff on non-403 errors", async () => {
+  let fetchCount = 0;
+  const { store } = createTempStateStore();
+
+  const service = new AlphaReminderService({
+    source: {
+      apiUrl: "https://example.test/api",
+      requestTimeoutMs: 1000,
+      pollIntervalMs: 100
+    },
+    bark: {},
+    fetchImpl: async () => {
+      fetchCount++;
+      if (fetchCount === 1) {
+        return {
+          ok: false,
+          status: 500,
+          headers: { get() { return "text/html"; } },
+          json: async () => ({})
+        };
+      }
+      return createJsonResponse(emptyFixture);
+    },
+    notifier: async () => undefined,
+    now: () => new Date("2026-05-14T10:00:00+08:00"),
+    stateStore: store
+  });
+
+  const runPromise = service.run();
+  await new Promise((resolve) => setTimeout(resolve, 150));
+  service.stop();
+  await runPromise;
+
+  assert.ok(fetchCount >= 2, "should continue polling after non-403 error");
+  assert.equal(service.stopped, true);
+});

@@ -55,10 +55,24 @@ function formatUtcPlus8Timestamp(now = new Date()) {
   return `${date}T${time}+08:00`;
 }
 
+function formatUtcPlus8Time(now = new Date()) {
+  const parts = new Intl.DateTimeFormat("sv-SE", {
+    timeZone: "Asia/Shanghai",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false
+  }).formatToParts(now);
+
+  const get = (type) => parts.find((p) => p.type === type).value;
+  return `${get("hour")}:${get("minute")}:${get("second")}`;
+}
+
 module.exports = {
   sleep,
   isNonEmptyString,
   normalizeString,
   formatUtcPlus8Date,
-  formatUtcPlus8Timestamp
+  formatUtcPlus8Timestamp,
+  formatUtcPlus8Time
 };
