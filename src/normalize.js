@@ -32,11 +32,13 @@ function normalizeDisplayValue(value) {
 
 function buildIdentityKey(item) {
   const token = normalizeString(item.token);
-  if (!token) {
+  const fallback = String(item.created_timestamp ?? "").trim();
+  const identity = token || fallback;
+  if (!identity) {
     return null;
   }
 
-  const identityParts = [`token:${token}`];
+  const identityParts = [`token:${identity}`];
   const candidateFields = [
     ["phase", item.phase],
     ["date", item.date],
@@ -68,11 +70,13 @@ function buildNotificationSignature(item, category) {
 
 function buildDedupKey(item) {
   const token = normalizeString(item.token);
-  if (!token) {
+  const fallback = String(item.created_timestamp ?? "").trim();
+  const identity = token || fallback;
+  if (!identity) {
     return null;
   }
 
-  const dedupeParts = [`token:${token}`];
+  const dedupeParts = [`token:${identity}`];
   const candidateFields = [
     ["created", item.created_timestamp],
     ["timestamp", item.timestamp],

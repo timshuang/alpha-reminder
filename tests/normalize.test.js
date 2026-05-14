@@ -148,7 +148,7 @@ test("extractNormalizedAirdrops only requires token to notify", () => {
   assert.equal(items[1].dedupeKey, "token:BBB|date:2026-05-05");
 });
 
-test("extractNormalizedAirdrops skips items without token even when created_timestamp is present", () => {
+test("extractNormalizedAirdrops keeps items without token using created_timestamp as fallback", () => {
   const items = extractNormalizedAirdrops(
     {
       airdrops: [
@@ -168,7 +168,8 @@ test("extractNormalizedAirdrops skips items without token even when created_time
     new Date("2026-05-07T09:00:00+08:00")
   );
 
-  assert.equal(items.length, 0);
+  assert.equal(items.length, 1);
+  assert.equal(items[0].token, "UNKNOWN");
 });
 
 test("extractNormalizedAirdrops keeps numeric points and amount values", () => {
