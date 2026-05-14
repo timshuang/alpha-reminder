@@ -35,6 +35,27 @@ async function run() {
     return;
   }
 
+  try {
+    await sendBarkNotification({
+      barkConfig: config.bark,
+      item: {
+        categoryLabel: "\u670d\u52a1\u542f\u52a8\u6d4b\u8bd5",
+        name: "Alpha Reminder",
+        token: "TEST",
+        points: "-",
+        amount: "-",
+        date: formatUtcPlus8Date(),
+        time: "TBA",
+        phase: "1",
+        type: "test",
+        status: "manual"
+      }
+    });
+    console.log("Startup bark test notification sent.");
+  } catch (error) {
+    console.error("Failed to send startup bark test notification:", error.message);
+  }
+
   process.on("SIGINT", () => {
     service.stop();
   });
